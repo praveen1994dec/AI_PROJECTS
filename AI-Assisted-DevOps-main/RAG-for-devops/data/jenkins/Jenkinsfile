@@ -1,0 +1,197 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION = 'us-east-1'
+        ECR_REGISTRY = '407622020962.dkr.ecr.us-east-1.amazonaws.com'
+        FRONTEND_REPO = 'frontend'
+        BACKEND_REPO = 'backend'
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+
+        GITOPS_REPO = 'https://github.com/Akashkayande/helm-argocd-eks.git'
+        GITOPS_BRANCH = 'main'
+        EMAIL = 'ramdaskayande637@gmail.com'
+    }
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+    }
+
+    stages {
+
+        stage('Checkout App Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Akashkayande/app-code-jenkins.git'
+            }
+        }
+
+        stage('Install Dependencies') {
+            parallel {
+                stage('Frontend') {
+                    steps {
+                        dir('client') {
+                            sh 'npm ci'
+                        }
+                    }
+                }
+                stage('server') {
+                    steps {
+                        dir('backend') {
+                            sh 'npm ci'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Run Tests') {
+            parallel {
+                stage('Frontend Tests') {
+                    steps {
+                        dir('client') {
+                            sh 'npm test || true'
+                        }
+                    }
+                }
+                stage('Backend Tests') {
+                    steps {
+                        dir('server') {
+                            sh 'npm test || true'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Images') {
+            parallel {
+                stage('Frontend Image') {
+                    steps {
+                        sh "docker build -t $ECR_REGISTRY/$FRONTEND_REPO:$IMAGE_TAG ./client"
+                    }
+                }
+                stage('Backend Image') {
+                    steps {
+                        sh "docker build -t $ECR_REGISTRY/$BACKEND_REPO:$IMAGE_TAG ./server"
+                    }
+                }
+            }
+        }
+
+        stage('Security Scan (Trivy)') {
+            steps {
+                sh '''
+                trivy image $ECR_REGISTRY/$BACKEND_REPO:$IMAGE_TAG --exit-code 1 --severity HIGH,CRITICAL
+                trivy image $ECR_REGISTRY/$FRONTEND_REPO:$IMAGE_TAG --exit-code 1 --severity HIGH,CRITICAL
+                '''
+            }
+        }
+
+        stage('Login to AWS ECR') {
+            steps {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
+                    sh '''
+                    aws ecr get-login-password --region $AWS_REGION \
+                    | docker login --username AWS --password-stdin $ECR_REGISTRY
+                    '''
+                }
+            }
+        }
+
+        stage('Push Images') {
+            parallel {
+                stage('Frontend Push') {
+                    steps {
+                        sh "docker push $ECR_REGISTRY/$FRONTEND_REPO:$IMAGE_TAG"
+                    }
+                }
+                stage('Backend Push') {
+                    steps {
+                        sh "docker push $ECR_REGISTRY/$BACKEND_REPO:$IMAGE_TAG"
+                    }
+                }
+            }
+        }
+
+        stage('Update GitOps Repo (Helm)') {
+            steps {
+              dir('gitops') {
+                git branch: "${GITOPS_BRANCH}", url: "${GITOPS_REPO}", credentialsId: 'github-creds'
+
+                sh '''
+                  yq e '.backend.image.tag = strenv(IMAGE_TAG)' -i helm/pern/prod-values.yaml
+                  yq e '.frontend.image.tag = strenv(IMAGE_TAG)' -i helm/pern/prod-values.yaml
+                '''
+
+                sh '''
+                  git config user.name "jenkins"
+                  git config user.email "jenkins@company.com"
+
+                  git add helm/pern/prod-values.yaml
+                  git commit -m "Update image tag to $IMAGE_TAG" || echo "No changes"
+                  git push origin ${GITOPS_BRANCH}
+                '''
+              }
+            }
+          }
+
+        stage('Cleanup') {
+            steps {
+                sh 'docker system prune -f'
+            }
+        }
+    }
+    
+    post {
+
+    success {
+        emailext(
+            from: 'akash1818@gmail.com',
+            to: "${EMAIL}",
+            subject: "✅ SUCCESS: PERN Deployment | Build #${BUILD_NUMBER}",
+            body: """
+Hello Team,
+
+✅ Build & Deployment Successful!
+
+🔹 Build Number: ${BUILD_NUMBER}
+🔹 Image Tag: ${IMAGE_TAG}
+🔹 AWS Region: ${AWS_REGION}
+
+🔹 GitOps:
+- Helm values updated
+- ArgoCD will sync automatically
+
+🔗 Job URL: ${BUILD_URL}
+
+Regards,  
+Jenkins CI/CD Pipeline
+"""
+        )
+    }
+
+    failure {
+        emailext(
+            from: 'akash1818@gmail.com',
+            to: "${EMAIL}",
+            subject: "❌ FAILED: PERN Deployment | Build #${BUILD_NUMBER}",
+            body: """
+Hello Team,
+
+❌ Build or Deployment Failed!
+
+🔹 Build Number: ${BUILD_NUMBER}
+🔹 Stage: Check Jenkins logs
+
+🔗 Check Logs: ${BUILD_URL}
+
+⚠️ Immediate action required!
+
+Regards,  
+Jenkins CI/CD Pipeline
+"""
+        )
+    }
+}
+}

@@ -1,0 +1,126 @@
+namespace: pern-prod
+
+backend:
+  name: backend-rollout
+  replicaCount: 2
+
+  env:
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    DB_NAME: pern
+
+  image:
+    repository: 407622020962.dkr.ecr.us-east-1.amazonaws.com/backend
+    tag: "2"
+    pullPolicy: IfNotPresent
+  
+  resources:
+    stable:
+      requests:
+        cpu: "200m"
+        memory: "256Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+  service:
+    type: ClusterIP
+    port: 5000 
+    targetPort: 3000
+
+  vpa:
+    enabled: true
+
+    updateMode: Off
+
+    minCpu: 200m
+    minMemory: 256Mi
+
+    maxCpu: 2
+    maxMemory: 2Gi
+
+  secrets:
+    PORT: "MzAwMA=="
+    CLERK_PUBLISHABLE_KEY: "cGtfdGVzdF9kSEoxYzNScGJtY3RhbUY1WW1seVpDMDJOQzVqYkdWeWF5NWhZMk52ZFc1MGN5NWtaWFlr"
+    CLERK_SECRET_KEY: "c2tfdGVzdF8wYkZtZUtWSDdMWEhVOTVvUlc5ZjM1SG9mVmR3WExLenpaVFhQTWFQRXg="
+    GEMINI_API_KEY: "QUl6YVN5QzFHWVoxUTJEZlJBWDBsOGdvX3d0djc1STBLdW5SYmdB"
+    CLIPDROP_API_KEY: "NjNjM2Q0NjJjNzFlYjcwOWI1ZDAzZDY5MzBiYjk5ZDM3NjU1MDM4MzA3MWI4OTk0ZmIwMjU1OTk4MTVlMWY5NGZiMGQzNzJkZTZmMmM3MGI1ZWQ1NjBkOWVhNjdhMzlk"
+    CLOUDINARY_CLOUD_NAME: "ZGx0cWRhOHBh"
+    CLOUDINARY_API_KEY: "NTI4OTM5NzgxNzgxMjEx"
+    CLOUDINARY_API_SECRET: "eHgxSmsxSlhPSkVGUC02WlBkZG9OYi11VktF"
+
+postgres:
+  name: postgres
+
+  image:
+    repository: postgres
+    tag: "16"
+
+  replicas: 1
+
+  database:
+    name: cGVybg==
+
+  user: YWRtaW4=
+  password: MTIzNDU2Nw==
+
+
+  service:
+    port: 5432
+
+  storage:
+    size: 20Gi
+    storageClass: gp3
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+
+frontend:
+
+  name: frontend-rollout
+  replicaCount: 2
+
+
+  image:
+    repository: 407622020962.dkr.ecr.us-east-1.amazonaws.com/frontend
+    tag: "2"
+    pullPolicy: IfNotPresent
+
+
+  resources:
+    stable:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "250m"
+        memory: "256Mi"
+
+  vpa:
+    enabled: true
+
+    updateMode: Off
+
+    minCpu: 50m
+    minMemory: 64Mi
+
+    maxCpu: 1
+    maxMemory: 1Gi
+    
+  service:
+    type: ClusterIP
+    port: 80
+
+ingress:
+  enabled: true
+  className: alb
+  host: pern.example.com
+  paths:
+    frontend: /
+    backend: /api

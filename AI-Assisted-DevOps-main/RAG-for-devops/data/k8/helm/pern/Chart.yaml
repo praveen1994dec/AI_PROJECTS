@@ -1,0 +1,6 @@
+apiVersion: v2
+name: pern
+description: PERN application deployed on EKS using Helm and Argo CD
+type: application
+version: 0.1.0
+appVersion: "1.0"

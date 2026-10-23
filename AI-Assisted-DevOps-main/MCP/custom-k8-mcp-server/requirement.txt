@@ -1,0 +1,2 @@
+kubernetes==36.0.2
+mcp[fastmcp]==1.28.1

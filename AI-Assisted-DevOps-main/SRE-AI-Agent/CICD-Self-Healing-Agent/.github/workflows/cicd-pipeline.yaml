@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1                 
+  ECR_REPOSITORY: nextjs-app-repo        
+  CONTAINER_NAME: nextjs-app             
+
+jobs:
+  deploy:
+    name: Build Image & Deploy to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Configure AWS Credentials
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Step 3: Login to Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Step 4: Build, Tag, and Push Docker Image to ECR
+      - name: Build, Tag, and Push Image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build and tag image with commit SHA and 'latest'
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG src/
+          
+          # Push to ECR
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      # Step 5: Deploy to EC2 via SSH
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }} # e.g., ubuntu or ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: ECR_REGISTRY, ECR_REPOSITORY, AWS_REGION, CONTAINER_NAME
+          script: |
+            # 1. Login to ECR on EC2 instance
+            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+            # 2. Pull latest image from ECR
+            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+            # 3. Stop and remove existing container if running
+            docker stop $CONTAINER_NAME || true
+            docker rm $CONTAINER_NAME || true
+
+            # 4. Run new container
+            docker run -d \
+              --name $CONTAINER_NAME \
+              --restart always \
+              -p 80:3000 \
+              $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+            # 5. Prune dangling old images to save disk space
+            docker image prune -f
+

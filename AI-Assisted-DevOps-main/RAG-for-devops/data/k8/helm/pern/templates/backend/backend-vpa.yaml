@@ -1,0 +1,25 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: {{ .Values.backend.name }}-vpa
+  namespace: {{ .Values.namespace }}
+spec:
+  targetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: {{ .Values.backend.name }}
+
+  updatePolicy:
+    updateMode: {{ .Values.backend.vpa.updateMode }}
+
+  resourcePolicy:
+    containerPolicies:
+      - containerName: backend
+
+        minAllowed:
+          cpu: {{ .Values.backend.vpa.minCpu }}
+          memory: {{ .Values.backend.vpa.minMemory }}
+
+        maxAllowed:
+          cpu: {{ .Values.backend.vpa.maxCpu }}
+          memory: {{ .Values.backend.vpa.maxMemory }}

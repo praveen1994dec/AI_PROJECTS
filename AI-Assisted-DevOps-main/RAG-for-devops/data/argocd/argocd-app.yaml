@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pern-prod
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Akashkayande/helm-argocd-eks.git
+    targetRevision: main
+    path: helm/pern
+    helm:
+      valueFiles:
+        - prod-values.yaml
+
+  destination:
+    server: https://172.31.6.84:33893
+    namespace: pern-prod
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

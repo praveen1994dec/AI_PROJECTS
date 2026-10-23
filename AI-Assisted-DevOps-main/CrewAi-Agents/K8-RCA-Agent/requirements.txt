@@ -1,0 +1,5 @@
+crewai>=0.28.8
+crewai-tools>=0.1.6
+kubernetes>=29.0.0
+streamlit>=1.32.0
+python-dotenv>=1.0.1

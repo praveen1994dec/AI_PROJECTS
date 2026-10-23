@@ -1,0 +1,3 @@
+import { useState } from "react"; import { download } from "../api";
+export default function DownloadButton({ id, region }: { id: string; region: string }) { const [format, setFormat] = useState("pdf");
+  return <div className="flex gap-2"><select value={format} onChange={e => setFormat(e.target.value)} className="rounded-lg bg-slate-800 px-3 py-2 text-sm"><option value="pdf">PDF</option><option value="csv">CSV</option></select><button onClick={() => download(`/api/report/${id}/download?format=${format}`, `cost-report-${region}.${format}`)} className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950">Download</button></div>; }

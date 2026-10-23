@@ -1,0 +1,60 @@
+gather_data_task:
+  description: >
+    The user is reporting an issue with a Kubernetes pod. 
+    User Query: "{user_query}"
+    Target Pod: {pod_name}
+    Namespace: {namespace}
+    
+    EXECUTE THIS EXACT CHECKLIST USING YOUR TOOLS:
+    1. [Status Check]: Use the status tool to get the Phase, Conditions, and Container Restart Counts.
+    2. [Event Check]: Use the events tool to fetch recent events. Look for ImagePullBackOff, Evicted, OOMKilled, FailedScheduling, or Liveness probe failures.
+    3. [Log Check]: Use the logs tool. If there are multiple containers, ensure you get logs for the failing one. Look for stack traces, panic messages, or "connection refused".
+    4. [Config Check]: Use the YAML tool to fetch the manifest. Pay close attention to resource limits/requests, environment variables, readiness/liveness probes, and volume mounts.
+  expected_output: >
+    A structured, raw data dump. Must include:
+    - POD STATUS & RESTARTS
+    - KUBERNETES EVENTS
+    - RELEVANT LOG LINES
+    - CRITICAL YAML CONFIGURATIONS (Limits, Probes, Env Vars)
+  agent: data_gatherer
+
+analyze_data_task:
+  description: >
+    Review the raw data dump collected by the Diagnostics Engineer for '{pod_name}'.
+    
+    Perform a strict Root Cause Analysis (RCA):
+    1. Identify the primary failure state (e.g., OOMKilled, CrashLoopBackOff, Pending, ImagePullBackOff).
+    2. Correlate the failure state with the logs and events.
+    3. Check the YAML configuration to see if it caused or contributed to the failure.
+    4. Determine the exact technical mechanism causing the failure.
+  expected_output: >
+    A highly technical explanation of the failure mechanism. 
+    You MUST cite specific evidence (e.g., "Event X at timestamp Y confirms Z" or "Line 45 in the YAML shows memory limit is only 128Mi").
+  agent: rca_analyst
+
+generate_report_task:
+  description: >
+    Based on the RCA provided, write the final Incident Report for '{pod_name}' in namespace '{namespace}'.
+    
+    The report MUST follow this exact Markdown structure:
+    
+    # 🚨 Kubernetes Incident Report: {pod_name}
+    
+    ## 📋 Incident Summary
+    (1-2 sentences summarizing the symptom and current state).
+    
+    ## 🔍 Root Cause Analysis
+    (Detailed explanation of WHY it failed, citing specific logs, events, or YAML misconfigurations).
+    
+    ## 🛠️ Resolution Guide
+    (Step-by-step instructions to fix the issue).
+    
+    ### Immediate Fix (Commands)
+    (Provide exact `kubectl` commands to apply a quick fix or restart if applicable. Use markdown code blocks.)
+    
+    ### Permanent Fix (YAML Configuration)
+    (Provide the exact YAML snippet that needs to be updated in the deployment manifest. Highlight the changes.)
+  expected_output: >
+    A meticulously formatted Markdown document following the exact structure requested above. 
+    Zero hallucinations in the code blocks.
+  agent: devops_reporter

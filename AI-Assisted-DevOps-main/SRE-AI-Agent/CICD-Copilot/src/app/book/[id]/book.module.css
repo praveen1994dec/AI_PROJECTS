@@ -1,0 +1,65 @@
+
+.appBar{
+    display: flex;
+    width: 90%;
+    margin: auto;
+    justify-content: space-between;
+    align-items:center;
+    min-height:5vh;
+    margin-top:10px;
+    margin-bottom:10px;
+}
+
+.saveButton{
+    padding: 10px 30px;
+    background: transparent;
+    border-radius: 30px;
+    border: 1px solid #000;
+    margin-right: 20px;
+    cursor:pointer; 
+}
+
+.saveButton:hover{
+    background:#000;
+    color:#fff;
+}
+
+.titleStyles{
+    text-align:center;
+    text-transform:uppercase;
+    padding-left:100px;
+}
+
+@media screen and (max-width: 768px) {
+    .appBar {
+        width: 95%;
+    }
+
+    .saveButton {
+        padding: 8px 20px;
+        margin-right: 10px;
+        font-size: 14px;
+    }
+
+    .titleStyles {
+        padding-left: 0;
+        font-size: 16px;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .appBar {
+        width: 100%;
+        padding: 0 10px;
+    }
+
+    .saveButton {
+        padding: 6px 15px;
+        margin-right: 8px;
+        font-size: 12px;
+    }
+
+    .titleStyles {
+        font-size: 14px;
+    }
+}

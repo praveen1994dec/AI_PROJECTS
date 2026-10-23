@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+boto3
+openai
+python-dotenv
+asyncpg
+websockets
+sqlalchemy
+reportlab
+PyJWT
+bcrypt
